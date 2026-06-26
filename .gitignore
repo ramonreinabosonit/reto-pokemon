@@ -1,0 +1,7 @@
+.bsp
+.idea
+build.sbt
+
+project
+target
+*.csv
