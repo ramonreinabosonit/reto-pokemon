@@ -2,8 +2,8 @@ package com.pokemon.processor
 
 import com.pokemon.Main.getClass
 import org.apache.log4j.Logger
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{col, count, desc, max, regexp_extract, regexp_replace, split, when}
+import org.apache.spark.sql.{DataFrame, SparkSession, functions}
+import org.apache.spark.sql.functions.{col, count, desc, explode, expr, max, regexp_extract, regexp_replace, size, split, when}
 import org.apache.spark.sql.types.{ArrayType, IntegerType, LongType, StringType, StructField, StructType}
 
 // claves primarias del Dataset:
@@ -69,13 +69,24 @@ object ETLProcessorTcg {
     pokemonTcfClearDF.groupBy("nameCartas").count().orderBy(desc("count")).show()
 
     // DIVIDIR LOS ATAQUES
+    logger.info("Contando ataques en el DataFrame")
+    // En regex101 las expresiones regulares son distitnas, solo una \ aqui \\
     val ataqueTcgDF = pokemonTcfClearDF
-//      withColumn("ataque", split(split(col("attacks"), ":")(1), ",")(0))
-      .withColumn("ataque", regexp_extract(col("attacks"), "'name'\\s*:\\s*'([^']+)'", 1))
+//      .withColumn("ataque", expr("""regexp_extract_all(attacks, "'name'\s*:\s*'([^']+)'", 1)"""))
+      .withColumn("ataque", expr("""regexp_extract_all(attacks, "'name'\\s*:\\s*'([^']+)'", 1)"""))
+
+//      .withColumn("ataque", when(col("attacks").isNull, 0).otherwise(size(split(col("attacks"), "name")) -1))
+
     ataqueTcgDF.show()
 
+    val damageTcgDF = ataqueTcgDF
+//      .withColumn("damage", when(col("attacks").isNull, 0))
+      .withColumn("damage", expr(
+      """transform(regexp_extract_all(attacks, "'damage'\\s*:\\s*'([0-9]+)\\+?'", 1),x -> cast(x as int))"""
+        ))
+    damageTcgDF.show()
     // FIN DE LA LIMPIEZA
-    ataqueTcgDF
+    damageTcgDF
   }
 
   private def definirEstructura(): StructType = {
